@@ -31,7 +31,8 @@ namespace ImageRaterApp
                     var filePath = openFileDialog.FileName;
 
                     string currentDirectory = new FileInfo(filePath).DirectoryName ?? throw new NullReferenceException();
- 
+                    rater?.SaveRatings();
+                    rater?.Close();
                     rater = new ImageRaterController(currentDirectory);
                     
                     label3.Text = rater?.StringCurrentDirectory();
@@ -55,21 +56,22 @@ namespace ImageRaterApp
                 }
                 catch {
                     bool end = rater?.NextFile() ?? false;
+                    picture = rater?.GetCurrentFile();
                     if (end) { 
                         MessageBox.Show("Reached end of directory wihtout finding valid image file", 
                             "End of directory", 
-                            MessageBoxButtons.OK); 
+                            MessageBoxButtons.OK);
+                        return;
                     }
                 }
                 
             }
             label2.Text = rater?.StringCurrentFile();
             pictureBox1.Image = image;
-
-            MessageBox.Show("Reached end of directory", "End of directory", MessageBoxButtons.OK);
-
-            
+    
         }
+
+
         int CurrentSelectedRating()
         {
             if (radioButton1.Checked) return 0;
@@ -92,7 +94,8 @@ namespace ImageRaterApp
         {
             if (!rated) return;
             rater?.SetRating(CurrentSelectedRating());
-            rater?.NextFile();
+            if(rater?.NextFile() ?? false)
+                MessageBox.Show("Reached end of directory", "End of directory", MessageBoxButtons.OK);
             OpenImage();
             label1.Text = rater?.StringProgress();
             checkBox1.Checked = rater?.IsRated() ?? false;
@@ -110,6 +113,11 @@ namespace ImageRaterApp
             radioButton3.Checked = true;
         }
 
+        void UpdateCheckBox()
+        {
+            checkBox1.Checked = rater?.IsRated() ?? false;
+        }
+
         private void KeyDowned(object sender, KeyEventArgs e)
         {
             var key = e.KeyCode;
@@ -121,14 +129,17 @@ namespace ImageRaterApp
                 case Keys.NumPad0:
                     radioButton1.Checked = true;
                     rated = true;
+                    UpdateCheckBox();
                     break;
                 case Keys.NumPad1:
                     radioButton2.Checked = true;
                     rated = true;
+                    UpdateCheckBox();
                     break;
                 case Keys.NumPad2:
                     radioButton3.Checked = true;
                     rated = true;
+                    UpdateCheckBox();
                     break;
                 case Keys.NumPad3:
                     radioButton4.Checked = true;
@@ -137,6 +148,7 @@ namespace ImageRaterApp
                 case Keys.NumPad4:
                     radioButton5.Checked = true;
                     rated = true;
+                    UpdateCheckBox();
                     break;
                 case Keys.NumPad5:
                     break;

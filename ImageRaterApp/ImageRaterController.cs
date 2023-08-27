@@ -38,6 +38,12 @@ namespace ImageRaterApp
             outputFile?.Dispose();
         }
 
+        public void Close()
+        {
+            outputFile?.Close();
+            outputFile?.Dispose();
+        }
+
         public void SaveRatings()
         {
             foreach (var file in files)
@@ -68,9 +74,11 @@ namespace ImageRaterApp
             
             return File.Exists(Path.Combine(directory, "image_rating.csv"));
         }
-
+        static string[] filetypes = { ".bmp", ".jpg", ".gif", ".png", ".jpeg" };
         void LoadFiles() { 
-            files = Directory.EnumerateFiles(currentDirectory).ToList();
+            files = Directory.EnumerateFiles(currentDirectory)
+                .Where((s) => filetypes.Any((ft) => s.Contains(ft, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
         }
 
         

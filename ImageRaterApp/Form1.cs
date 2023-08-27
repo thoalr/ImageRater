@@ -1,13 +1,13 @@
+using System.Reflection.Metadata.Ecma335;
+using System;
+
 namespace ImageRaterApp
 {
     public partial class Form1 : Form
     {
-        string currentDirectory;
-        List<string> files;
-        int currentFileIndex = 0;
-        int numberOfFiles = 0;
-        StreamWriter? outputFile;
-
+        ImageRaterController? rater;
+        // prevents navigation when false
+        bool rated = false;
 
         public Form1()
         {
@@ -30,22 +30,23 @@ namespace ImageRaterApp
                     //Get the path of specified file
                     var filePath = openFileDialog.FileName;
 
-                    currentDirectory = new FileInfo(filePath).DirectoryName ?? throw new NullReferenceException();
-                    label3.Text = $"Current Directory: {currentDirectory}";
-                    files = Directory.EnumerateFiles(currentDirectory).ToList();
-                    currentFileIndex = 0;
-                    numberOfFiles = files.Count();
-                    outputFile = new StreamWriter(File.Open(Path.Combine(currentDirectory, "image_rating.csv"), FileMode.Append));
+                    string currentDirectory = new FileInfo(filePath).DirectoryName ?? throw new NullReferenceException();
+ 
+                    rater = new ImageRaterController(currentDirectory);
+                    
+                    label3.Text = rater?.StringCurrentDirectory();
+                    
                     FirstImage();
                 }
             }
         }
 
-        void OpenNextImage()
+        void OpenImage()
         {
-            var picture = files[currentFileIndex++];
+            if (rater == null) return;
+            var picture = rater?.GetCurrentFile();
             Bitmap image = null;
-            while(image == null && currentFileIndex < numberOfFiles)
+            while(image == null)
             {
                 // If we fail to open the file as a Bitmap skip files until it succeeds
                 try
@@ -53,12 +54,17 @@ namespace ImageRaterApp
                     image = new Bitmap(picture);
                 }
                 catch {
-                    picture = files[currentFileIndex++];
+                    bool end = rater?.NextFile() ?? false;
+                    if (end) { 
+                        MessageBox.Show("Reached end of directory wihtout finding valid image file", 
+                            "End of directory", 
+                            MessageBoxButtons.OK); 
+                    }
                 }
                 
             }
-            label2.Text = $"Current: {picture}";
-            pictureBox1.Image = new Bitmap(image);
+            label2.Text = rater?.StringCurrentFile();
+            pictureBox1.Image = image;
 
             MessageBox.Show("Reached end of directory", "End of directory", MessageBoxButtons.OK);
 
@@ -76,19 +82,31 @@ namespace ImageRaterApp
 
         void FirstImage()
         {
-            OpenNextImage();
-            label1.Text = $"Progress: [{currentFileIndex}/{numberOfFiles}] {100 * currentFileIndex / numberOfFiles}%";
+            OpenImage();
+            label1.Text = rater?.StringProgress();
+            checkBox1.Checked = rater?.IsRated() ?? false;
             radioButton3.Checked = true;
         }
 
         private void NextImage(object sender, EventArgs e)
         {
-            if (currentFileIndex < numberOfFiles)
-            {
-                outputFile?.WriteLine($"{files[currentFileIndex]},{CurrentSelectedRating()}");
-            }
-            OpenNextImage();
-            label1.Text = $"Progress: [{currentFileIndex}/{numberOfFiles}] {100*currentFileIndex/numberOfFiles}%";
+            if (!rated) return;
+            rater?.SetRating(CurrentSelectedRating());
+            rater?.NextFile();
+            OpenImage();
+            label1.Text = rater?.StringProgress();
+            checkBox1.Checked = rater?.IsRated() ?? false;
+            radioButton3.Checked = true;
+        }
+
+        private void PreviousImage(object sender, EventArgs e)
+        {
+            if (!rated) return;
+            rater?.SetRating(CurrentSelectedRating());
+            rater?.PreviousFile();
+            OpenImage();
+            label1.Text = rater?.StringProgress();
+            checkBox1.Checked = rater?.IsRated() ?? false;
             radioButton3.Checked = true;
         }
 
@@ -102,19 +120,23 @@ namespace ImageRaterApp
                     break;
                 case Keys.NumPad0:
                     radioButton1.Checked = true;
+                    rated = true;
                     break;
                 case Keys.NumPad1:
                     radioButton2.Checked = true;
+                    rated = true;
                     break;
                 case Keys.NumPad2:
                     radioButton3.Checked = true;
+                    rated = true;
                     break;
                 case Keys.NumPad3:
                     radioButton4.Checked = true;
-                 
+                    rated = true;
                     break;
                 case Keys.NumPad4:
                     radioButton5.Checked = true;
+                    rated = true;
                     break;
                 case Keys.NumPad5:
                     break;
@@ -126,6 +148,12 @@ namespace ImageRaterApp
                     break;
                 case Keys.NumPad9:
                     break;
+                case Keys.Left:
+                    PreviousImage(sender, e);
+                    break;
+                case Keys.Right:
+                    NextImage(sender, e);
+                    break;
                 case Keys.Enter:
                     NextImage(sender, e);
                     break;
@@ -134,5 +162,22 @@ namespace ImageRaterApp
             }
         }
 
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            rater?.SaveRatings();
+        }
+
+        private void closeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if(rater != null)
+            {
+                rater.SaveRatings();
+                rater = null;
+                rated = false;
+                pictureBox1.Image = null;
+                radioButton3.Checked = true;
+                checkBox1.Checked = false;
+            }
+        }
     }
 }
